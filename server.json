@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.habenani/servicenow-mcp",
+  "name": "io.github.aartiq/servicenow-mcp",
   "title": "ServiceNow MCP Server",
   "description": "400+ ServiceNow tools across all modules — ITSM, CMDB, HRSD, CSM, SecOps, and more.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "websiteUrl": "https://github.com/aartiq/servicenow-mcp",
   "repository": {
     "url": "https://github.com/aartiq/servicenow-mcp",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "@aartiq/servicenow-mcp",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "transport": {
         "type": "stdio"
       },
