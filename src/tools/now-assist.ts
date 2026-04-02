@@ -144,10 +144,9 @@ export async function executeNowAssistToolCall(
   name: string,
   args: Record<string, any>
 ): Promise<any> {
-  requireNowAssist();
-
   switch (name) {
     case 'nlq_query': {
+      requireNowAssist();
       if (!args.question) throw new ServiceNowError('question is required', 'INVALID_REQUEST');
       // ServiceNow NLQ API: POST /api/sn_nl_text_to_value/text_query
       const result = await client.callNowAssist('/api/sn_nl_text_to_value/text_query', {
@@ -158,6 +157,7 @@ export async function executeNowAssistToolCall(
       return { question: args.question, ...result };
     }
     case 'ai_search': {
+      requireNowAssist();
       if (!args.query) throw new ServiceNowError('query is required', 'INVALID_REQUEST');
       // ServiceNow AI Search API: GET /api/now/ai_search/search
       const params = new URLSearchParams({ q: args.query, limit: String(args.limit || 10) });
@@ -166,6 +166,7 @@ export async function executeNowAssistToolCall(
       return { query: args.query, ...result };
     }
     case 'generate_summary': {
+      requireNowAssist();
       if (!args.table || !args.sys_id) throw new ServiceNowError('table and sys_id are required', 'INVALID_REQUEST');
       // Now Assist Skill: POST /api/sn_assist/skill/invoke
       const result = await client.callNowAssist('/api/sn_assist/skill/invoke', {
@@ -175,6 +176,7 @@ export async function executeNowAssistToolCall(
       return { table: args.table, sys_id: args.sys_id, summary: result?.output?.summary || result };
     }
     case 'suggest_resolution': {
+      requireNowAssist();
       if (!args.incident_sys_id) throw new ServiceNowError('incident_sys_id is required', 'INVALID_REQUEST');
       const result = await client.callNowAssist('/api/sn_assist/skill/invoke', {
         skill: 'resolution_suggestion',
@@ -183,6 +185,7 @@ export async function executeNowAssistToolCall(
       return { incident_sys_id: args.incident_sys_id, suggestion: result?.output || result };
     }
     case 'categorize_incident': {
+      requireNowAssist();
       if (!args.short_description) throw new ServiceNowError('short_description is required', 'INVALID_REQUEST');
       // Predictive Intelligence ML API: POST /api/sn_ml/solution/{id}/predict
       // Get available PI solutions first then predict
@@ -198,6 +201,7 @@ export async function executeNowAssistToolCall(
       return { short_description: args.short_description, prediction: result, algorithm_note: 'LightGBM available in latest release' };
     }
     case 'get_virtual_agent_topics': {
+      requireNowAssist();
       // VA API: GET /api/sn_cs/topic (streaming support added)
       let query = '';
       if (args.active !== false) query = 'active=true';
@@ -206,6 +210,7 @@ export async function executeNowAssistToolCall(
       return { count: resp.count, topics: resp.records, note: 'ServiceNow VA supports streaming responses and Google Chat v2.0' };
     }
     case 'trigger_agentic_playbook': {
+      requireNowAssist();
       if (!args.playbook_sys_id) throw new ServiceNowError('playbook_sys_id is required', 'INVALID_REQUEST');
       // Agentic Playbooks API
       const result = await client.callNowAssist('/api/sn_assist/playbook/trigger', {
@@ -215,11 +220,13 @@ export async function executeNowAssistToolCall(
       return { playbook_sys_id: args.playbook_sys_id, result, note: 'Agentic Playbooks are a latest release feature' };
     }
     case 'get_ms_copilot_topics': {
+      requireNowAssist();
       // MS Copilot 365 Custom Engine Agent
       const result = await client.callNowAssist('/api/sn_assist/copilot/topics', {});
       return { topics: result, note: 'Microsoft Copilot 365 integration (Custom Engine Agent) is a latest release feature' };
     }
     case 'generate_work_notes': {
+      requireNowAssist();
       if (!args.table || !args.sys_id) throw new ServiceNowError('table and sys_id are required', 'INVALID_REQUEST');
       const result = await client.callNowAssist('/api/sn_assist/skill/invoke', {
         skill: 'work_notes_draft',
@@ -228,6 +235,7 @@ export async function executeNowAssistToolCall(
       return { table: args.table, sys_id: args.sys_id, draft: result?.output?.text || result };
     }
     case 'get_pi_models': {
+      requireNowAssist();
       const resp = await client.queryRecords({ table: 'ml_solution', query: 'active=true', limit: 20, fields: 'sys_id,name,table_name,type,active,sys_updated_on' });
       return { count: resp.count, models: resp.records, note: 'Predictive Intelligence supports LightGBM, Feed Forward Neural Net, and XGBoost' };
     }
