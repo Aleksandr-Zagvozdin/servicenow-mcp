@@ -351,20 +351,13 @@ export class ServiceNowClient {
 
     if (params.orderBy) {
       // Handle descending sort (prefix with "-")
-      if (params.orderBy.startsWith('-')) {
-        const field = params.orderBy.substring(1);
-        queryParams.set('sysparm_query',
-          params.query
-            ? `${params.query}^ORDERBY${field}^ORDERBYDESC`
-            : `ORDERBY${field}^ORDERBYDESC`
-        );
-      } else {
-        queryParams.set('sysparm_query',
-          params.query
-            ? `${params.query}^ORDERBY${params.orderBy}`
-            : `ORDERBY${params.orderBy}`
-        );
-      }
+      const orderClause = params.orderBy.startsWith('-')
+        ? `ORDERBYDESC${params.orderBy.substring(1)}`
+        : `ORDERBY${params.orderBy}`;
+      const currentQuery = queryParams.get('sysparm_query');
+      queryParams.set('sysparm_query',
+        currentQuery ? `${currentQuery}^${orderClause}` : orderClause
+      );
     }
 
     const url = `${this.baseUrl}/api/now/table/${params.table}?${queryParams.toString()}`;
