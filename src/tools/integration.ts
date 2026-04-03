@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite, requireScripting } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getIntegrationToolDefinitions() {
   return [
@@ -271,7 +272,7 @@ export async function executeIntegrationToolCall(
     // ── Outbound REST Messages ───────────────────────────────────────────────
     case 'list_rest_messages': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_rest_message',
         query: parts.join('^') || undefined,
@@ -318,7 +319,7 @@ export async function executeIntegrationToolCall(
     case 'list_transform_maps': {
       const parts: string[] = [];
       if (args.target_table) parts.push(`target_table=${args.target_table}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORtarget_tableCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORtarget_tableCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_transform_map',
         query: parts.join('^') || undefined,
@@ -391,7 +392,7 @@ export async function executeIntegrationToolCall(
     case 'list_data_sources': {
       const parts: string[] = [];
       if (args.type) parts.push(`type=${args.type}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_data_source',
         query: parts.join('^') || undefined,
@@ -402,7 +403,7 @@ export async function executeIntegrationToolCall(
     // ── Event Registry ──────────────────────────────────────────────────────
     case 'list_event_registry': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sysevent_register',
         query: parts.join('^') || undefined,
@@ -457,7 +458,7 @@ export async function executeIntegrationToolCall(
     }
     case 'list_event_log': {
       const parts: string[] = [];
-      if (args.event_name) parts.push(`nameCONTAINS${args.event_name}`);
+      if (args.event_name) parts.push(`nameCONTAINS${escapeQueryValue(args.event_name)}`);
       if (args.state) parts.push(`state=${args.state}`);
       return await client.queryRecords({
         table: 'sysevent',
@@ -470,7 +471,7 @@ export async function executeIntegrationToolCall(
     // ── OAuth ────────────────────────────────────────────────────────────────
     case 'list_oauth_applications': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORclient_idCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORclient_idCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'oauth_entity',
         query: parts.join('^') || undefined,
@@ -481,7 +482,7 @@ export async function executeIntegrationToolCall(
     case 'list_credential_aliases': {
       const parts: string[] = [];
       if (args.type) parts.push(`type=${args.type}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_alias',
         query: parts.join('^') || undefined,

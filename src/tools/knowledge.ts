@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getKnowledgeToolDefinitions() {
   return [
@@ -106,7 +107,7 @@ export async function executeKnowledgeToolCall(
     }
     case 'search_knowledge': {
       if (!args.query) throw new ServiceNowError('query is required', 'INVALID_REQUEST');
-      let query = `short_descriptionLIKE${args.query}^ORtextLIKE${args.query}^workflow_state=published`;
+      let query = `short_descriptionLIKE${escapeQueryValue(args.query)}^ORtextLIKE${escapeQueryValue(args.query)}^workflow_state=published`;
       if (args.knowledge_base) query += `^kb_knowledge_base.title=${args.knowledge_base}^ORkb_knowledge_base=${args.knowledge_base}`;
       const resp = await client.queryRecords({ table: 'kb_knowledge', query, limit: args.limit || 10, fields: 'sys_id,number,short_description,workflow_state,kb_knowledge_base,view_count' });
       return { count: resp.count, articles: resp.records };

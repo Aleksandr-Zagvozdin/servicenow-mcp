@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getNotificationToolDefinitions() {
   return [
@@ -227,7 +228,7 @@ export async function executeNotificationToolCall(
       if (args.active !== undefined) parts.push(`active=${args.active}`);
       if (args.table) parts.push(`collection=${args.table}`);
       if (args.event) parts.push(`event_name=${args.event}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sysevent_email_action',
         query: parts.join('^') || undefined,
@@ -274,8 +275,8 @@ export async function executeNotificationToolCall(
     case 'list_email_logs': {
       const parts: string[] = [];
       if (args.state) parts.push(`state=${args.state}`);
-      if (args.recipient) parts.push(`receiverCONTAINS${args.recipient}`);
-      if (args.subject) parts.push(`subjectCONTAINS${args.subject}`);
+      if (args.recipient) parts.push(`receiverCONTAINS${escapeQueryValue(args.recipient)}`);
+      if (args.subject) parts.push(`subjectCONTAINS${escapeQueryValue(args.subject)}`);
       return await client.queryRecords({
         table: 'sys_email',
         query: parts.join('^') || undefined,
@@ -333,7 +334,7 @@ export async function executeNotificationToolCall(
     // ── Templates ────────────────────────────────────────────────────────────
     case 'list_email_templates': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sysevent_email_template',
         query: parts.join('^') || undefined,

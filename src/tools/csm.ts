@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getCsmToolDefinitions() {
   return [
@@ -211,7 +212,7 @@ export async function executeCsmToolCall(
     }
     case 'list_csm_accounts': {
       const active = args.active !== false ? 'active=true' : '';
-      const q = args.query ? `nameCONTAINS${args.query}` : '';
+      const q = args.query ? `nameCONTAINS${escapeQueryValue(args.query)}` : '';
       const query = [active, q].filter(Boolean).join('^');
       return await client.queryRecords({ table: 'customer_account', query, limit: args.limit ?? 50 });
     }
@@ -222,7 +223,7 @@ export async function executeCsmToolCall(
       }
       const resp = await client.queryRecords({
         table: 'customer_contact',
-        query: `nameCONTAINS${args.name_or_sysid}^ORemail=${args.name_or_sysid}`,
+        query: `nameCONTAINS${escapeQueryValue(args.name_or_sysid)}^ORemail=${args.name_or_sysid}`,
         limit: 1,
       });
       if (resp.count === 0) throw new ServiceNowError(`Contact not found: ${args.name_or_sysid}`, 'NOT_FOUND');
@@ -231,7 +232,7 @@ export async function executeCsmToolCall(
     case 'list_csm_contacts': {
       const parts: string[] = [];
       if (args.account_sysid) parts.push(`account=${args.account_sysid}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORemail=${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORemail=${args.query}`);
       return await client.queryRecords({ table: 'customer_contact', query: parts.join('^') || '', limit: args.limit ?? 25 });
     }
     case 'get_csm_case_sla': {
@@ -239,7 +240,7 @@ export async function executeCsmToolCall(
       return await client.queryRecords({ table: 'task_sla', query: `task=${args.case_sysid}`, limit: 10 });
     }
     case 'list_csm_products': {
-      const q = args.query ? `nameCONTAINS${args.query}` : '';
+      const q = args.query ? `nameCONTAINS${escapeQueryValue(args.query)}` : '';
       return await client.queryRecords({ table: 'cmdb_ci_service', query: q, limit: args.limit ?? 50 });
     }
     default:

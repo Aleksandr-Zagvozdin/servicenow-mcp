@@ -12,6 +12,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite, requireScripting } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getDeploymentToolDefinitions() {
   return [
@@ -78,7 +79,7 @@ export async function executeDeploymentToolCall(
       if (!args.name) throw new ServiceNowError('name is required', 'INVALID_REQUEST');
       const tableMap: Record<string, string> = { business_rule: 'sys_script', script_include: 'sys_script_include', client_script: 'sys_script_client', ui_policy: 'sys_ui_policy', ui_action: 'sys_ui_action', widget: 'sp_widget', flow: 'sys_hub_flow', sys_properties: 'sys_properties' };
       const table = args.type ? (tableMap[args.type] || args.type) : 'sys_metadata';
-      let query = `nameLIKE${args.name}`;
+      let query = `nameLIKE${escapeQueryValue(args.name)}`;
       if (args.scope) query += `^sys_scope.name=${args.scope}`;
       const resp = await client.queryRecords({ table, query, limit: args.limit || 25, fields: 'sys_id,name,sys_class_name,sys_scope,active,sys_updated_on' });
       return { count: resp.count, artifacts: resp.records };
@@ -143,8 +144,23 @@ export async function executeDeploymentToolCall(
     case 'execute_background_script': {
       requireScripting();
       if (!args.script) throw new ServiceNowError('script is required', 'INVALID_REQUEST');
+      const script = String(args.script);
+      // Validate script for dangerous patterns before sending to instance
+      const BLOCKED_PATTERNS: Array<[RegExp, string]> = [
+        [/\beval\s*\(/i, 'eval() is blocked — use direct code instead'],
+        [/\bnew\s+Function\s*\(/i, 'new Function() is blocked — use direct code instead'],
+        [/\bGlide\.db\(\)/i, 'Direct database access via Glide.db() is not allowed'],
+        [/\bgs\.sleep\s*\(/i, 'gs.sleep() blocks the application thread — remove or use async patterns'],
+        [/\bGlideRecordSecure\b.*\.deleteMultiple\s*\(/i, 'Bulk delete via deleteMultiple() is blocked for safety'],
+        [/\bGlidePluginManager\b.*\.unloadPlugin/i, 'Plugin unloading is blocked for safety'],
+      ];
+      for (const [pattern, message] of BLOCKED_PATTERNS) {
+        if (pattern.test(script)) {
+          throw new ServiceNowError(`Script validation failed: ${message}`, 'SCRIPT_VALIDATION_FAILED');
+        }
+      }
       try {
-        const resp = await client.callNowAssist('/api/now/sp/background_script', { script: args.script, scope: args.scope || 'global' });
+        const resp = await client.callNowAssist('/api/now/sp/background_script', { script, scope: args.scope || 'global' });
         return { action: 'executed', output: resp };
       } catch (err) {
         return { action: 'failed', error: err instanceof Error ? err.message : String(err) };

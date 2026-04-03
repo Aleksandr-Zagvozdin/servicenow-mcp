@@ -13,6 +13,7 @@
  *   @kb:<title>      — Knowledge article by title
  */
 import type { ServiceNowClient } from '../servicenow/client.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export interface McpResource {
   uri: string;
@@ -107,7 +108,7 @@ export async function readResource(client: ServiceNowClient, uri: string): Promi
     const ciName = decodeURIComponent(ciMatch[1]!);
     return client.queryRecords({
       table: 'cmdb_ci',
-      query: `nameLIKE${ciName}`,
+      query: `nameLIKE${escapeQueryValue(ciName)}`,
       limit: 5,
       fields: 'name,sys_class_name,operational_status,install_status,ip_address,sys_id',
     });
@@ -118,7 +119,7 @@ export async function readResource(client: ServiceNowClient, uri: string): Promi
     const kbTitle = decodeURIComponent(kbMatch[1]!);
     return client.queryRecords({
       table: 'kb_knowledge',
-      query: `short_descriptionLIKE${kbTitle}^ORtextLIKE${kbTitle}`,
+      query: `short_descriptionLIKE${escapeQueryValue(kbTitle)}^ORtextLIKE${escapeQueryValue(kbTitle)}`,
       limit: 5,
       fields: 'number,short_description,text,category,sys_id',
     });

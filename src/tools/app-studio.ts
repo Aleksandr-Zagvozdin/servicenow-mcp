@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getAppStudioToolDefinitions() {
   return [
@@ -88,7 +89,7 @@ export async function executeAppStudioToolCall(
     case 'list_scoped_apps': {
       const parts: string[] = [];
       if (args.active !== undefined) parts.push(`active=${args.active}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORscopeCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORscopeCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_app',
         query: parts.join('^') || undefined,

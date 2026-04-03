@@ -8,6 +8,7 @@
  * ServiceNow tables: alm_asset, alm_hardware, alm_license, ast_contract
  */
 import type { ServiceNowClient } from '../servicenow/client.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
 
@@ -159,7 +160,7 @@ export async function executeItamToolCall(
       let query = '';
       if (args.state) query = `install_status=${args.state}`;
       if (args.assigned_to) query = query ? `${query}^assigned_to=${args.assigned_to}` : `assigned_to=${args.assigned_to}`;
-      if (args.location) query = query ? `${query}^locationLIKE${args.location}` : `locationLIKE${args.location}`;
+      if (args.location) query = query ? `${query}^locationLIKE${escapeQueryValue(args.location)}` : `locationLIKE${escapeQueryValue(args.location)}`;
       if (args.query) query = query ? `${query}^${args.query}` : args.query;
       const table = args.asset_class || 'alm_asset';
       const resp = await client.queryRecords({
@@ -269,7 +270,7 @@ export async function executeItamToolCall(
     case 'get_license_optimization': {
       const threshold = args.threshold_pct || 80;
       let query = '';
-      if (args.software_name) query = `display_nameLIKE${args.software_name}`;
+      if (args.software_name) query = `display_nameLIKE${escapeQueryValue(args.software_name)}`;
       const resp = await client.queryRecords({
         table: 'alm_license',
         query: query || undefined,

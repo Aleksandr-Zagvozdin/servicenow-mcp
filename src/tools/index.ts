@@ -6,6 +6,11 @@
  *   full (default), service_desk, change_coordinator, knowledge_author,
  *   catalog_builder, system_administrator, platform_developer, itom_engineer,
  *   agile_manager, ai_developer, portal_developer, integration_engineer
+ *
+ * Performance notes:
+ *   - Tool definitions are lazily computed and cached (built once on first call)
+ *   - Tool dispatch uses a Map<string, handler> for O(1) lookup instead of
+ *     iterating through all domain handlers sequentially
  */
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
@@ -68,6 +73,14 @@ import { getWorkspaceToolDefinitions, executeWorkspaceToolCall } from './workspa
 import { getMobileToolDefinitions, executeMobileToolCall } from './mobile.js';
 // Deployment & Artifacts
 import { getDeploymentToolDefinitions, executeDeploymentToolCall } from './deployment.js';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type ToolHandler = (
+  client: ServiceNowClient,
+  name: string,
+  args: Record<string, unknown>
+) => Promise<unknown>;
 
 // ─── Package Definitions ──────────────────────────────────────────────────────
 
@@ -197,105 +210,98 @@ const PACKAGE_TOOL_NAMES: Record<string, string[]> = {
   ],
 };
 
-// ─── All Tool Definitions ─────────────────────────────────────────────────────
+// ─── Domain modules: [definitions, executor] pairs ──────────────────────────
 
-const ALL_TOOLS = [
-  ...getCoreToolDefinitions(),
-  ...getIncidentToolDefinitions(),
-  ...getProblemToolDefinitions(),
-  ...getChangeToolDefinitions(),
-  ...getTaskToolDefinitions(),
-  ...getKnowledgeToolDefinitions(),
-  ...getCatalogToolDefinitions(),
-  ...getUserToolDefinitions(),
-  ...getReportingToolDefinitions(),
-  ...getAtfToolDefinitions(),
-  ...getNowAssistToolDefinitions(),
-  ...getScriptToolDefinitions(),
-  ...getAgileToolDefinitions(),
-  ...getHrsdToolDefinitions(),
-  ...getCsmToolDefinitions(),
-  ...getSecurityToolDefinitions(),
-  ...getFlowToolDefinitions(),
-  ...getPortalToolDefinitions(),
-  ...getIntegrationToolDefinitions(),
-  ...getNotificationToolDefinitions(),
-  ...getPerformanceToolDefinitions(),
-  ...getSysPropertiesToolDefinitions(),
-  ...getUpdateSetToolDefinitions(),
-  ...getVaToolDefinitions(),
-  ...getItamToolDefinitions(),
-  ...getDevopsToolDefinitions(),
-  ...getAppStudioToolDefinitions(),
-  ...getMlToolDefinitions(),
-  ...getWorkspaceToolDefinitions(),
-  ...getMobileToolDefinitions(),
-  ...getDeploymentToolDefinitions(),
+const DOMAIN_MODULES: Array<[() => Array<{ name: string; description: string; inputSchema: any }>, ToolHandler]> = [
+  [getCoreToolDefinitions, executeCoreToolCall],
+  [getIncidentToolDefinitions, executeIncidentToolCall],
+  [getProblemToolDefinitions, executeProblemToolCall],
+  [getChangeToolDefinitions, executeChangeToolCall],
+  [getTaskToolDefinitions, executeTaskToolCall],
+  [getKnowledgeToolDefinitions, executeKnowledgeToolCall],
+  [getCatalogToolDefinitions, executeCatalogToolCall],
+  [getUserToolDefinitions, executeUserToolCall],
+  [getReportingToolDefinitions, executeReportingToolCall],
+  [getAtfToolDefinitions, executeAtfToolCall],
+  [getNowAssistToolDefinitions, executeNowAssistToolCall],
+  [getScriptToolDefinitions, executeScriptToolCall],
+  [getAgileToolDefinitions, executeAgileToolCall],
+  [getHrsdToolDefinitions, executeHrsdToolCall],
+  [getCsmToolDefinitions, executeCsmToolCall],
+  [getSecurityToolDefinitions, executeSecurityToolCall],
+  [getFlowToolDefinitions, executeFlowToolCall],
+  [getPortalToolDefinitions, executePortalToolCall],
+  [getIntegrationToolDefinitions, executeIntegrationToolCall],
+  [getNotificationToolDefinitions, executeNotificationToolCall],
+  [getPerformanceToolDefinitions, executePerformanceToolCall],
+  [getSysPropertiesToolDefinitions, executeSysPropertiesToolCall],
+  [getUpdateSetToolDefinitions, executeUpdateSetToolCall],
+  [getVaToolDefinitions, executeVaToolCall],
+  [getItamToolDefinitions, executeItamToolCall],
+  [getDevopsToolDefinitions, executeDevopsToolCall],
+  [getAppStudioToolDefinitions, executeAppStudioToolCall],
+  [getMlToolDefinitions, executeMlToolCall],
+  [getWorkspaceToolDefinitions, executeWorkspaceToolCall],
+  [getMobileToolDefinitions, executeMobileToolCall],
+  [getDeploymentToolDefinitions, executeDeploymentToolCall],
 ];
+
+// ─── Lazy-cached tool definitions & O(1) dispatch map ────────────────────────
+
+let _allTools: Array<{ name: string; description: string; inputSchema: any }> | null = null;
+let _handlerMap: Map<string, ToolHandler> | null = null;
+
+function ensureInitialized(): void {
+  if (_allTools && _handlerMap) return;
+
+  _allTools = [];
+  _handlerMap = new Map();
+
+  for (const [getDefinitions, executor] of DOMAIN_MODULES) {
+    const defs = getDefinitions();
+    for (const def of defs) {
+      _allTools.push(def);
+      _handlerMap.set(def.name, executor);
+    }
+  }
+}
+
+/** Reset the cached tools and handler map (useful for testing). */
+export function resetToolCache(): void {
+  _allTools = null;
+  _handlerMap = null;
+}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export function getTools() {
+  ensureInitialized();
+  const allTools = _allTools!;
   const packageName = (process.env.MCP_TOOL_PACKAGE || 'full').toLowerCase();
 
   if (packageName === 'full') {
-    return ALL_TOOLS;
+    return allTools;
   }
 
   const allowed = PACKAGE_TOOL_NAMES[packageName];
   if (!allowed) {
     console.error(`[WARN] Unknown MCP_TOOL_PACKAGE "${packageName}". Using "full".`);
-    return ALL_TOOLS;
+    return allTools;
   }
 
   const allowedSet = new Set(allowed);
-  return ALL_TOOLS.filter(t => allowedSet.has(t.name));
+  return allTools.filter(t => allowedSet.has(t.name));
 }
 
 export async function executeTool(
   client: ServiceNowClient,
   name: string,
-  args: Record<string, any>
-): Promise<any> {
-  // Try each domain handler in order; first non-null result wins
-  const handlers = [
-    () => executeCoreToolCall(client, name, args),
-    () => executeIncidentToolCall(client, name, args),
-    () => executeProblemToolCall(client, name, args),
-    () => executeChangeToolCall(client, name, args),
-    () => executeTaskToolCall(client, name, args),
-    () => executeKnowledgeToolCall(client, name, args),
-    () => executeCatalogToolCall(client, name, args),
-    () => executeUserToolCall(client, name, args),
-    () => executeReportingToolCall(client, name, args),
-    () => executeAtfToolCall(client, name, args),
-    () => executeNowAssistToolCall(client, name, args),
-    () => executeScriptToolCall(client, name, args),
-    () => executeAgileToolCall(client, name, args),
-    () => executeHrsdToolCall(client, name, args),
-    () => executeCsmToolCall(client, name, args),
-    () => executeSecurityToolCall(client, name, args),
-    () => executeFlowToolCall(client, name, args),
-    () => executePortalToolCall(client, name, args),
-    () => executeIntegrationToolCall(client, name, args),
-    () => executeNotificationToolCall(client, name, args),
-    () => executePerformanceToolCall(client, name, args),
-    () => executeSysPropertiesToolCall(client, name, args),
-    () => executeUpdateSetToolCall(client, name, args),
-    () => executeVaToolCall(client, name, args),
-    () => executeItamToolCall(client, name, args),
-    () => executeDevopsToolCall(client, name, args),
-    () => executeAppStudioToolCall(client, name, args),
-    () => executeMlToolCall(client, name, args),
-    () => executeWorkspaceToolCall(client, name, args),
-    () => executeMobileToolCall(client, name, args),
-    () => executeDeploymentToolCall(client, name, args),
-  ];
-
-  for (const handler of handlers) {
-    const result = await handler();
-    if (result !== null) return result;
+  args: Record<string, unknown>
+): Promise<unknown> {
+  ensureInitialized();
+  const handler = _handlerMap!.get(name);
+  if (!handler) {
+    throw new ServiceNowError(`Unknown tool: ${name}`, 'UNKNOWN_TOOL');
   }
-
-  throw new ServiceNowError(`Unknown tool: ${name}`, 'UNKNOWN_TOOL');
+  return handler(client, name, args);
 }

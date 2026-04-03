@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getPerformanceToolDefinitions() {
   return [
@@ -249,7 +250,7 @@ export async function executePerformanceToolCall(
       const parts: string[] = [];
       if (args.active !== false) parts.push('active=true');
       if (args.category) parts.push(`category=${args.category}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'pa_indicators',
         query: parts.join('^') || '',
@@ -264,7 +265,7 @@ export async function executePerformanceToolCall(
       }
       const resp = await client.queryRecords({
         table: 'pa_indicators',
-        query: `nameCONTAINS${args.sys_id_or_name}`,
+        query: `nameCONTAINS${escapeQueryValue(args.sys_id_or_name)}`,
         limit: 1,
       });
       if (resp.count === 0) throw new ServiceNowError(`PA indicator not found: ${args.sys_id_or_name}`, 'NOT_FOUND');
@@ -321,7 +322,7 @@ export async function executePerformanceToolCall(
     }
     case 'list_pa_breakdowns': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'pa_breakdowns',
         query: parts.join('^') || undefined,
@@ -332,7 +333,7 @@ export async function executePerformanceToolCall(
     // ── Dashboards ───────────────────────────────────────────────────────────
     case 'list_pa_dashboards': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'pa_dashboards',
         query: parts.join('^') || undefined,
@@ -347,7 +348,7 @@ export async function executePerformanceToolCall(
       }
       const resp = await client.queryRecords({
         table: 'pa_dashboards',
-        query: `nameCONTAINS${args.sys_id_or_name}`,
+        query: `nameCONTAINS${escapeQueryValue(args.sys_id_or_name)}`,
         limit: 1,
       });
       if (resp.count === 0) throw new ServiceNowError(`PA dashboard not found: ${args.sys_id_or_name}`, 'NOT_FOUND');
@@ -355,7 +356,7 @@ export async function executePerformanceToolCall(
     }
     case 'list_homepages': {
       const parts: string[] = [];
-      if (args.query) parts.push(`titleCONTAINS${args.query}`);
+      if (args.query) parts.push(`titleCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_ui_hp',
         query: parts.join('^') || undefined,
@@ -367,7 +368,7 @@ export async function executePerformanceToolCall(
     case 'list_pa_jobs': {
       const parts: string[] = [];
       if (args.active !== false) parts.push('active=true');
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'pa_job',
         query: parts.join('^') || '',

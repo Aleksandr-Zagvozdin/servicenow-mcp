@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite, requireScripting } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getFlowToolDefinitions() {
   return [
@@ -225,7 +226,7 @@ export async function executeFlowToolCall(
       const parts: string[] = [];
       if (args.active !== false) parts.push('active=true');
       if (args.category) parts.push(`category=${args.category}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({ table: 'sys_hub_flow', query: parts.join('^') || '', limit: args.limit ?? 50 });
     }
     case 'get_flow': {
@@ -233,7 +234,7 @@ export async function executeFlowToolCall(
       if (/^[0-9a-f]{32}$/i.test(args.name_or_sysid)) {
         return await client.getRecord('sys_hub_flow', args.name_or_sysid);
       }
-      const resp = await client.queryRecords({ table: 'sys_hub_flow', query: `nameCONTAINS${args.name_or_sysid}`, limit: 1 });
+      const resp = await client.queryRecords({ table: 'sys_hub_flow', query: `nameCONTAINS${escapeQueryValue(args.name_or_sysid)}`, limit: 1 });
       if (resp.count === 0) throw new ServiceNowError(`Flow not found: ${args.name_or_sysid}`, 'NOT_FOUND');
       return resp.records[0];
     }
@@ -257,7 +258,7 @@ export async function executeFlowToolCall(
     case 'list_subflows': {
       const parts: string[] = [];
       if (args.active !== false) parts.push('active=true');
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({ table: 'sys_hub_subflow', query: parts.join('^') || '', limit: args.limit ?? 50 });
     }
     case 'get_subflow': {
@@ -265,14 +266,14 @@ export async function executeFlowToolCall(
       if (/^[0-9a-f]{32}$/i.test(args.name_or_sysid)) {
         return await client.getRecord('sys_hub_subflow', args.name_or_sysid);
       }
-      const resp = await client.queryRecords({ table: 'sys_hub_subflow', query: `nameCONTAINS${args.name_or_sysid}`, limit: 1 });
+      const resp = await client.queryRecords({ table: 'sys_hub_subflow', query: `nameCONTAINS${escapeQueryValue(args.name_or_sysid)}`, limit: 1 });
       if (resp.count === 0) throw new ServiceNowError(`Subflow not found: ${args.name_or_sysid}`, 'NOT_FOUND');
       return resp.records[0];
     }
     case 'list_action_instances': {
       const parts: string[] = [];
       if (args.category) parts.push(`category=${args.category}`);
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({ table: 'sys_hub_action_instance', query: parts.join('^') || '', limit: args.limit ?? 50 });
     }
     case 'get_process_automation': {
@@ -280,14 +281,14 @@ export async function executeFlowToolCall(
       if (/^[0-9a-f]{32}$/i.test(args.name_or_sysid)) {
         return await client.getRecord('pa_process', args.name_or_sysid);
       }
-      const resp = await client.queryRecords({ table: 'pa_process', query: `nameCONTAINS${args.name_or_sysid}`, limit: 1 });
+      const resp = await client.queryRecords({ table: 'pa_process', query: `nameCONTAINS${escapeQueryValue(args.name_or_sysid)}`, limit: 1 });
       if (resp.count === 0) throw new ServiceNowError(`Process automation not found: ${args.name_or_sysid}`, 'NOT_FOUND');
       return resp.records[0];
     }
     case 'list_process_automations': {
       const parts: string[] = [];
       if (args.active !== false) parts.push('active=true');
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({ table: 'pa_process', query: parts.join('^') || '', limit: args.limit ?? 50 });
     }
     case 'create_flow': {

@@ -10,6 +10,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getSysPropertiesToolDefinitions() {
   return [
@@ -237,7 +238,7 @@ export async function executeSysPropertiesToolCall(
 
     case 'search_system_properties': {
       if (!args.search) throw new ServiceNowError('search is required', 'INVALID_REQUEST');
-      const q = `nameLIKE${args.search}^ORvalueLIKE${args.search}^ORdescriptionLIKE${args.search}`;
+      const q = `nameLIKE${escapeQueryValue(args.search)}^ORvalueLIKE${escapeQueryValue(args.search)}^ORdescriptionLIKE${escapeQueryValue(args.search)}`;
       const resp = await client.queryRecords({
         table: 'sys_properties',
         query: q,

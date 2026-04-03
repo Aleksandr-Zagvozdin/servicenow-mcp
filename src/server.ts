@@ -10,12 +10,16 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import dotenv from 'dotenv';
+import { createRequire } from 'module';
 import { instanceManager } from './servicenow/instances.js';
-import { getTools } from './tools/index.js';
+import { getTools, executeTool } from './tools/index.js';
 import { getResources, readResource } from './resources/index.js';
 import { getPrompts, resolvePrompt } from './prompts/index.js';
 import { logger } from './utils/logging.js';
 import { ServiceNowError } from './utils/errors.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 dotenv.config();
 
@@ -31,7 +35,7 @@ if (!hasLegacy && !hasMulti && !hasConfig) {
 const server = new Server(
   {
     name: 'servicenow-mcp',
-    version: '1.0.0',
+    version,
   },
   {
     capabilities: {
@@ -65,7 +69,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const instanceName = (args as Record<string, unknown>)?.['instance'] as string | undefined;
     const client = instanceManager.getClient(instanceName);
 
-    const { executeTool } = await import('./tools/index.js');
     const result = await executeTool(client, name, args || {});
 
     return {

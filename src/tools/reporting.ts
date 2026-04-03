@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getReportingToolDefinitions() {
   return [
@@ -273,8 +274,8 @@ export async function executeReportingToolCall(
     case 'list_reports': {
       // Latest release: /api/now/reporting supports sysparm_contains for name search
       let query = '';
-      if (args.search) query = `nameLIKE${args.search}`;
-      if (args.category) query = query ? `${query}^categoryLIKE${args.category}` : `categoryLIKE${args.category}`;
+      if (args.search) query = `nameLIKE${escapeQueryValue(args.search)}`;
+      if (args.category) query = query ? `${query}^categoryLIKE${escapeQueryValue(args.category)}` : `categoryLIKE${escapeQueryValue(args.category)}`;
       const resp = await client.queryRecords({ table: 'sys_report', query: query || undefined, limit: args.limit || 20, fields: 'sys_id,title,table,type,category,sys_updated_on,user' });
       return { count: resp.count, reports: resp.records };
     }

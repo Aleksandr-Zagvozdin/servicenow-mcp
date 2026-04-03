@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getSecurityToolDefinitions() {
   return [
@@ -342,8 +343,8 @@ export async function executeSecurityToolCall(
     case 'get_threat_intelligence': {
       if (!args.query) throw new ServiceNowError('query is required', 'INVALID_REQUEST');
       const q = args.type
-        ? `type=${args.type}^valueCONTAINS${args.query}`
-        : `valueCONTAINS${args.query}`;
+        ? `type=${args.type}^valueCONTAINS${escapeQueryValue(args.query)}`
+        : `valueCONTAINS${escapeQueryValue(args.query)}`;
       return await client.queryRecords({ table: 'sn_ti_observable', query: q, limit: args.limit ?? 25 });
     }
     case 'list_security_playbooks': {

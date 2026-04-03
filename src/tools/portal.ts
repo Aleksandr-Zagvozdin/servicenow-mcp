@@ -6,6 +6,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getPortalToolDefinitions() {
   return [
@@ -262,7 +263,7 @@ export async function executePortalToolCall(
     }
     case 'list_portals': {
       const parts: string[] = [];
-      if (args.query) parts.push(`titleCONTAINS${args.query}^ORurl_suffixCONTAINS${args.query}`);
+      if (args.query) parts.push(`titleCONTAINS${escapeQueryValue(args.query)}^ORurl_suffixCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sp_portal',
         query: parts.join('^') || undefined,
@@ -286,7 +287,7 @@ export async function executePortalToolCall(
     case 'list_portal_pages': {
       if (!args.portal_sys_id) throw new ServiceNowError('portal_sys_id is required', 'INVALID_REQUEST');
       const parts = [`sp_portal=${args.portal_sys_id}`];
-      if (args.query) parts.push(`titleCONTAINS${args.query}^ORidCONTAINS${args.query}`);
+      if (args.query) parts.push(`titleCONTAINS${escapeQueryValue(args.query)}^ORidCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sp_page',
         query: parts.join('^'),
@@ -301,7 +302,7 @@ export async function executePortalToolCall(
     // ── Widgets ──────────────────────────────────────────────────────────────
     case 'list_portal_widgets': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sp_widget',
         query: parts.join('^') || undefined,
@@ -361,7 +362,7 @@ export async function executePortalToolCall(
     // ── UI Builder ──────────────────────────────────────────────────────────
     case 'list_ux_apps': {
       const parts: string[] = [];
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_ux_app_config',
         query: parts.join('^') || undefined,
@@ -385,7 +386,7 @@ export async function executePortalToolCall(
     case 'list_ux_pages': {
       if (!args.app_sys_id) throw new ServiceNowError('app_sys_id is required', 'INVALID_REQUEST');
       const parts = [`ux_app_config=${args.app_sys_id}`];
-      if (args.query) parts.push(`nameCONTAINS${args.query}`);
+      if (args.query) parts.push(`nameCONTAINS${escapeQueryValue(args.query)}`);
       return await client.queryRecords({
         table: 'sys_ux_page',
         query: parts.join('^'),

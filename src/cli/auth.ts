@@ -8,7 +8,8 @@
 import { input, password, select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import ora from 'ora';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { randomBytes, createHash } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import { listInstances } from './config-store.js';
@@ -43,7 +44,10 @@ function loadTokens(): TokenStore {
 }
 
 function saveTokens(store: TokenStore): void {
-  writeFileSync(tokenPath(), JSON.stringify(store, null, 2), 'utf8');
+  const p = tokenPath();
+  writeFileSync(p, JSON.stringify(store, null, 2), 'utf8');
+  // Restrict token file to owner-only read/write (0600)
+  chmodSync(p, 0o600);
 }
 
 function tokenKey(instanceUrl: string): string {
@@ -73,19 +77,37 @@ export async function authLogin(): Promise<void> {
   console.log('');
 
   if (instance.authMethod === 'oauth' && instance.clientId) {
-    // OAuth Authorization Code flow — open browser
+    // OAuth Authorization Code flow with PKCE + CSRF state parameter
+    const state = randomBytes(32).toString('hex');
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
+
     const authUrl =
       `${instanceUrl}/oauth_auth.do` +
-      `?response_type=code&client_id=${instance.clientId}` +
-      `&redirect_uri=http://localhost:8765/callback`;
+      `?response_type=code&client_id=${encodeURIComponent(instance.clientId)}` +
+      `&redirect_uri=${encodeURIComponent('http://localhost:8765/callback')}` +
+      `&state=${state}` +
+      `&code_challenge=${codeChallenge}` +
+      `&code_challenge_method=S256`;
 
     console.log(chalk.cyan('Open this URL in your browser to authenticate:'));
     console.log(chalk.underline(authUrl));
+    console.log('');
+    console.log(chalk.dim(`CSRF state: ${state.slice(0, 8)}…`));
     console.log('');
 
     const code = await input({
       message: 'Paste the authorization code from the redirect URL:',
     });
+
+    const returnedState = await input({
+      message: 'Paste the state parameter from the redirect URL:',
+    });
+
+    if (returnedState !== state) {
+      console.log(chalk.red('CSRF state mismatch — possible authorization code interception. Aborting.'));
+      return;
+    }
 
     const spinner = ora('Exchanging authorization code for token…').start();
     try {
@@ -98,6 +120,7 @@ export async function authLogin(): Promise<void> {
           client_secret: instance.clientSecret || '',
           code,
           redirect_uri: 'http://localhost:8765/callback',
+          code_verifier: codeVerifier,
         }).toString(),
       });
 

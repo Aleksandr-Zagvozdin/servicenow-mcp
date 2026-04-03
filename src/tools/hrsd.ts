@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getHrsdToolDefinitions() {
   return [
@@ -268,7 +269,7 @@ export async function executeHrsdToolCall(
       return { ...result, summary: `Closed HR case ${args.sys_id}` };
     }
     case 'list_hr_services': {
-      const q = args.query ? `nameCONTAINS${args.query}^ORdescriptionCONTAINS${args.query}` : '';
+      const q = args.query ? `nameCONTAINS${escapeQueryValue(args.query)}^ORdescriptionCONTAINS${escapeQueryValue(args.query)}` : '';
       const active = args.active !== false ? 'active=true^' : '';
       const resp = await client.queryRecords({ table: 'sn_hr_core_service', query: `${active}${q}`, limit: args.limit ?? 50 });
       return resp;

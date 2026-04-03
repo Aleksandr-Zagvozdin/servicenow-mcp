@@ -7,6 +7,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireScripting } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getScriptToolDefinitions() {
   return [
@@ -462,8 +463,25 @@ export async function executeScriptToolCall(
     }
     case 'publish_changeset': {
       if (!args.sys_id) throw new ServiceNowError('sys_id is required', 'INVALID_REQUEST');
-      const result = await client.updateRecord('sys_update_set', args.sys_id, { state: 'complete' });
-      return { ...result, summary: `Published changeset ${args.sys_id}` };
+      // First ensure the update set is complete (required before export)
+      const us = await client.getRecord('sys_update_set', args.sys_id);
+      if (us.state !== 'complete') {
+        await client.updateRecord('sys_update_set', args.sys_id, { state: 'complete' });
+      }
+      // Retrieve the update set XML entries for export
+      const xmlEntries = await client.queryRecords({
+        table: 'sys_update_xml',
+        query: `update_set=${args.sys_id}`,
+        limit: 500,
+        fields: 'sys_id,name,type,action,sys_created_on',
+      });
+      return {
+        action: 'published',
+        sys_id: args.sys_id,
+        name: us.name,
+        entries: xmlEntries.count,
+        summary: `Published changeset "${us.name}" with ${xmlEntries.count} entries — use ServiceNow Export UI or REST to download the XML payload`,
+      };
     }
     // ── Client Script CRUD ───────────────────────────────────────────────────
     case 'create_client_script': {
@@ -561,7 +579,7 @@ export async function executeScriptToolCall(
     case 'list_acls': {
       let query = '';
       if (args.active !== undefined) query = `active=${args.active}`;
-      if (args.table) query = query ? `${query}^name=${args.table}.*^ORname=${args.table}` : `nameLIKE${args.table}`;
+      if (args.table) query = query ? `${query}^name=${args.table}.*^ORname=${args.table}` : `nameLIKE${escapeQueryValue(args.table)}`;
       if (args.operation) query = query ? `${query}^operation=${args.operation}` : `operation=${args.operation}`;
       const resp = await client.queryRecords({
         table: 'sys_security_acl',

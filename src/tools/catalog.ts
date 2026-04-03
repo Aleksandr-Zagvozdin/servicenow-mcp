@@ -5,6 +5,7 @@
 import type { ServiceNowClient } from '../servicenow/client.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { requireWrite } from '../utils/permissions.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 export function getCatalogToolDefinitions() {
   return [
@@ -243,7 +244,7 @@ export async function executeCatalogToolCall(
     }
     case 'search_catalog': {
       if (!args.query) throw new ServiceNowError('query is required', 'INVALID_REQUEST');
-      const resp = await client.queryRecords({ table: 'sc_cat_item', query: `nameLIKE${args.query}^ORshort_descriptionLIKE${args.query}^active=true`, limit: args.limit || 10 });
+      const resp = await client.queryRecords({ table: 'sc_cat_item', query: `nameLIKE${escapeQueryValue(args.query)}^ORshort_descriptionLIKE${escapeQueryValue(args.query)}^active=true`, limit: args.limit || 10 });
       return { count: resp.count, catalog_items: resp.records };
     }
     case 'get_catalog_item': {

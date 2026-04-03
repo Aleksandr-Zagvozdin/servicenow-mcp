@@ -9,6 +9,7 @@ import type {
 } from './types.js';
 import { ServiceNowError } from '../utils/errors.js';
 import { logger } from '../utils/logging.js';
+import { escapeQueryValue } from '../utils/query-builder.js';
 
 // ─── Input validation helpers ────────────────────────────────────────────────
 
@@ -919,7 +920,7 @@ export class ServiceNowClient {
     // this would use NLP to determine the table and build the query
     logger.info(`Natural language search: ${query}`);
 
-    const searchQuery = `short_descriptionLIKE${query}^ORdescriptionLIKE${query}`;
+    const searchQuery = `short_descriptionLIKE${escapeQueryValue(query)}^ORdescriptionLIKE${escapeQueryValue(query)}`;
 
     return this.queryRecords({
       table: 'incident',
