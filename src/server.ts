@@ -21,7 +21,12 @@ import { ServiceNowError } from './utils/errors.js';
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json') as { version: string };
 
+// Load .env then re-initialize instance manager so it picks up
+// env vars that were not available at module-load time (e.g. when
+// the server is launched via `cd <project> && node dist/server.js`
+// and credentials live only in .env, not in the process environment).
 dotenv.config();
+instanceManager.reload();
 
 // Require at least one instance to be configured
 const hasLegacy = !!process.env.SERVICENOW_INSTANCE_URL;
